@@ -1,0 +1,6 @@
+{
+  "name": "Cloud Phone Pro",
+  "description": "Quản lý Cloud Phone PRO MAX, chơi game cloud, tab Admin ẩn chỉnh sửa liên kết thiết bị và thêm ứng dụng Khám Phá.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
