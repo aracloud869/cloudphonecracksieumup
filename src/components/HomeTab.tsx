@@ -232,6 +232,79 @@ export const HomeTab: React.FC<HomeTabProps> = ({
         </div>
       </motion.div>
 
+      {/* Guide / Hướng Dẫn Quick Access Banner */}
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        whileHover={{ y: -2 }}
+        onClick={() => onOpenGuidesModal && onOpenGuidesModal()}
+        style={{
+          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.25), rgba(3, 105, 161, 0.35))',
+          border: '1px solid rgba(0, 240, 255, 0.3)',
+          padding: '16px 20px',
+          borderRadius: '20px',
+          color: 'white',
+          marginBottom: '20px',
+          boxShadow: '0 8px 24px rgba(0, 240, 255, 0.12)',
+          cursor: 'pointer',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '16px',
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div
+            style={{
+              width: '48px',
+              height: '48px',
+              borderRadius: '16px',
+              background: 'rgba(0, 240, 255, 0.15)',
+              border: '1px solid rgba(0, 240, 255, 0.3)',
+              color: '#00f0ff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '1.4rem',
+              flexShrink: 0,
+            }}
+          >
+            <i className="fas fa-book-open"></i>
+          </div>
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+              <span style={{ fontSize: '0.72rem', fontWeight: 800, background: 'rgba(0, 240, 255, 0.2)', color: '#00f0ff', padding: '2px 8px', borderRadius: '10px' }}>
+                {t.guidesTitle || 'HƯỚNG DẪN SỬ DỤNG'}
+              </span>
+            </div>
+            <h4 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 850, lineHeight: '1.2', color: '#f8fafc' }}>
+              Mục Hướng Dẫn Chi Tiết
+            </h4>
+            <p style={{ margin: '3px 0 0 0', fontSize: '0.8rem', color: '#94a3b8' }}>
+              Xem danh sách các bài viết hướng dẫn mới nhất từ Admin
+            </p>
+          </div>
+        </div>
+        <motion.div
+          whileTap={{ scale: 0.9 }}
+          style={{
+            background: 'linear-gradient(135deg, #00f0ff 0%, #0284c7 100%)',
+            color: '#060911',
+            width: '38px',
+            height: '38px',
+            borderRadius: '50%',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            boxShadow: '0 0 12px rgba(0, 240, 255, 0.4)',
+          }}
+        >
+          <i className="fas fa-chevron-right" style={{ fontSize: '0.9rem' }}></i>
+        </motion.div>
+      </motion.div>
+
       {/* Announcements & Updates Section */}
       <div style={{ marginBottom: '24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
