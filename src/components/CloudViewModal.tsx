@@ -219,10 +219,6 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
             win.postMessage({ type: 'pointerup', x: relX, y: relY }, '*');
           }
         }
-
-        if (targetRingRef.current) {
-          targetRingRef.current.style.pointerEvents = 'auto';
-        }
       } catch (e) {
         // ignore
       }
@@ -552,6 +548,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
             cursor: 'grab',
             userSelect: 'none',
             touchAction: 'none',
+            pointerEvents: 'none',
           }}
         >
           {/* Main Ring Target Circle */}
@@ -561,7 +558,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
               width: `${autoClickSize}px`,
               height: `${autoClickSize}px`,
               borderRadius: '50%',
-              background: isAutoClickerActive ? 'rgba(239, 68, 68, 0.45)' : 'rgba(15, 23, 42, 0.82)',
+              background: isAutoClickerActive ? 'rgba(239, 68, 68, 0.35)' : 'rgba(15, 23, 42, 0.75)',
               border: isAutoClickerActive ? '2.5px solid #ef4444' : '2.5px solid #00f0ff',
               boxShadow: isAutoClickerActive ? '0 0 30px rgba(239, 68, 68, 0.9)' : '0 0 22px rgba(0, 240, 255, 0.6)',
               display: 'flex',
@@ -569,6 +566,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
               justifyContent: 'center',
               backdropFilter: 'blur(8px)',
               transition: 'width 0.2s, height 0.2s, background 0.2s, border 0.2s',
+              pointerEvents: isAutoClickerActive ? 'none' : 'auto',
             }}
           >
             {/* Center Target Pointer Icon */}
@@ -578,6 +576,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 fontSize: `${Math.max(1, autoClickSize * 0.35)}px`,
                 color: isAutoClickerActive ? '#ef4444' : '#00f0ff',
                 textShadow: isAutoClickerActive ? '0 0 8px #ef4444' : '0 0 8px #00f0ff',
+                pointerEvents: 'none',
               }}
             />
 
@@ -603,6 +602,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 justifyContent: 'center',
                 cursor: 'pointer',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                pointerEvents: 'auto',
               }}
               title="Cài đặt Auto-Clicker"
             >
@@ -636,6 +636,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 justifyContent: 'center',
                 cursor: 'pointer',
                 boxShadow: '0 2px 8px rgba(0,0,0,0.5)',
+                pointerEvents: 'auto',
               }}
               title={isAutoClickerActive ? 'Tạm dừng Auto Click' : 'Bắt đầu Auto Click'}
             >
