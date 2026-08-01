@@ -532,6 +532,7 @@ body {
   -webkit-backdrop-filter: blur(12px);
   z-index: 1001;
   border: 1px solid var(--border-card);
+  pointer-events: none;
 }
 
 .fps-monitor {

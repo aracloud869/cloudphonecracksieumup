@@ -67,15 +67,37 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     return () => clearInterval(pingInterval);
   }, []);
 
+  // Proxy Mode State
+  const [useProxy, setUseProxy] = useState<boolean>(() => {
+    return url ? url.startsWith('https://levivietnam.vercel.app') : false;
+  });
+
   const getActiveUrl = () => {
     if (!url) return 'about:blank';
+    if (!useProxy) {
+      return url;
+    }
     if (url.startsWith('https://levivietnam.vercel.app')) {
       return url;
     }
-    return `https://levivietnam.vercel.app/?url=${url}`;
+    return `https://levivietnam.vercel.app/?url=${encodeURIComponent(url)}`;
   };
 
   const activeSrc = getActiveUrl();
+
+  const handleOpenExternal = () => {
+    if (!url) return;
+    const finalUrl = getActiveUrl();
+    window.open(finalUrl, '_blank', 'noopener,noreferrer');
+    showToast('🌐 Đã mở giao diện Cloud trong Tab Mới!');
+  };
+
+  const handleToggleProxy = () => {
+    const next = !useProxy;
+    setUseProxy(next);
+    showToast(next ? '🛡️ Bật Cloud Proxy' : '⚡ Tắt Proxy (Tải URL Trực Tiếp)');
+    setIsDrawerOpen(false);
+  };
 
   useEffect(() => {
     if (url) {
@@ -167,19 +189,41 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
 
         // PostMessage & direct iframe event dispatch
         if (iframeRef.current) {
+          iframeRef.current.focus();
+          const rect = iframeRef.current.getBoundingClientRect();
+          const relX = clickX - rect.left;
+          const relY = clickY - rect.top;
+
           const iframeOpts: MouseEventInit = {
             bubbles: true,
             cancelable: true,
             clientX: clickX,
             clientY: clickY,
+            screenX: clickX,
+            screenY: clickY,
             view: window,
           };
           iframeRef.current.dispatchEvent(new PointerEvent('pointerdown', iframeOpts));
+          iframeRef.current.dispatchEvent(new MouseEvent('mousedown', iframeOpts));
+          iframeRef.current.dispatchEvent(new PointerEvent('pointerup', iframeOpts));
+          iframeRef.current.dispatchEvent(new MouseEvent('mouseup', iframeOpts));
           iframeRef.current.dispatchEvent(new MouseEvent('click', iframeOpts));
 
           if (iframeRef.current.contentWindow) {
             iframeRef.current.contentWindow.postMessage(
-              { type: 'AUTOCLICK_TAP', x: clickX, y: clickY },
+              { type: 'AUTOCLICK_TAP', x: relX, y: relY, clientX: clickX, clientY: clickY },
+              '*'
+            );
+            iframeRef.current.contentWindow.postMessage(
+              { type: 'click', x: relX, y: relY, clientX: clickX, clientY: clickY },
+              '*'
+            );
+            iframeRef.current.contentWindow.postMessage(
+              { action: 'click', x: relX, y: relY },
+              '*'
+            );
+            iframeRef.current.contentWindow.postMessage(
+              { type: 'tap', x: relX, y: relY },
               '*'
             );
           }
@@ -414,44 +458,79 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
       {/* Status Overlay */}
       {statusText && <div className="cloud-status">{statusText}</div>}
 
-      {/* Floating Real-time Ping Indicator Badge */}
+      {/* Floating Top Control Toolbar */}
       <div
         style={{
           position: 'fixed',
           top: '12px',
           right: '12px',
           zIndex: 10040,
-          background: 'rgba(15, 23, 42, 0.85)',
-          backdropFilter: 'blur(10px)',
-          color: '#ffffff',
-          padding: '4px 12px',
-          borderRadius: '20px',
-          fontSize: '0.75rem',
-          fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
-          gap: '6px',
-          border: '1px solid rgba(255, 255, 255, 0.2)',
-          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
-          userSelect: 'none',
-          pointerEvents: 'none',
+          gap: '8px',
         }}
       >
-        <span
+        {/* Open in New Tab Button */}
+        <motion.button
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={handleOpenExternal}
           style={{
-            width: '8px',
-            height: '8px',
-            borderRadius: '50%',
-            background: ping < 40 ? '#10b981' : ping < 75 ? '#f59e0b' : '#ef4444',
-            boxShadow: `0 0 8px ${ping < 40 ? '#10b981' : ping < 75 ? '#f59e0b' : '#ef4444'}`,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(10px)',
+            color: '#38bdf8',
+            padding: '5px 12px',
+            borderRadius: '20px',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            border: '1px solid rgba(56, 189, 248, 0.4)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            cursor: 'pointer',
           }}
-        />
-        <span>Ping: {ping}ms</span>
-        {isTurboBoost && (
-          <span style={{ color: '#00f0ff', fontSize: '0.68rem', fontWeight: 900, background: 'rgba(0,240,255,0.2)', padding: '1px 5px', borderRadius: '6px', marginLeft: '4px' }}>
-            TURBO
-          </span>
-        )}
+          title="Mở trong Tab Mới"
+        >
+          <i className="fas fa-external-link-alt" />
+          <span>Mở Tab Mới</span>
+        </motion.button>
+
+        {/* Real-time Ping Indicator Badge */}
+        <div
+          style={{
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(10px)',
+            color: '#ffffff',
+            padding: '5px 12px',
+            borderRadius: '20px',
+            fontSize: '0.75rem',
+            fontWeight: 700,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+            border: '1px solid rgba(255, 255, 255, 0.2)',
+            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            userSelect: 'none',
+            pointerEvents: 'none',
+          }}
+        >
+          <span
+            style={{
+              width: '8px',
+              height: '8px',
+              borderRadius: '50%',
+              background: ping < 40 ? '#10b981' : ping < 75 ? '#f59e0b' : '#ef4444',
+              boxShadow: `0 0 8px ${ping < 40 ? '#10b981' : ping < 75 ? '#f59e0b' : '#ef4444'}`,
+            }}
+          />
+          <span>Ping: {ping}ms</span>
+          {isTurboBoost && (
+            <span style={{ color: '#00f0ff', fontSize: '0.68rem', fontWeight: 900, background: 'rgba(0,240,255,0.2)', padding: '1px 5px', borderRadius: '6px', marginLeft: '4px' }}>
+              TURBO
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Main Cloud Iframe Container */}
@@ -475,10 +554,13 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
           title="Cloud Phone Frame"
           width="100%"
           height="100%"
+          tabIndex={0}
+          onPointerDown={() => iframeRef.current?.focus()}
+          onMouseDown={() => iframeRef.current?.focus()}
           frameBorder="0"
           allow="autoplay; gamepad; crossorigin-cookies; screen-wake-lock; accelerometer; camera; microphone; fullscreen; geolocation; gyroscope; payment; picture-in-picture; web-share; display-capture"
           sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-modals allow-pointer-lock allow-downloads allow-top-navigation-by-user-activation"
-          style={{ border: 'none', width: '100%', height: '100%' }}
+          style={{ border: 'none', width: '100%', height: '100%', pointerEvents: 'auto' }}
         />
       </div>
 
@@ -1031,6 +1113,56 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
               >
                 <i className="fas fa-sync-alt" style={{ fontSize: '0.95rem', width: '18px' }} />
                 <span>{t?.reloadCloud || 'Tải lại Cloud'}</span>
+              </motion.button>
+
+              {/* 1.5. Open in New Tab */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleOpenExternal}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: 'rgba(56, 189, 248, 0.15)',
+                  border: '1px solid rgba(56, 189, 248, 0.35)',
+                  color: '#38bdf8',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-external-link-alt" style={{ fontSize: '0.95rem', width: '18px', color: '#38bdf8' }} />
+                <span>Mở Trong Tab Mới</span>
+              </motion.button>
+
+              {/* 1.8. Toggle Proxy / Direct URL Mode */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleToggleProxy}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: useProxy ? 'rgba(16, 185, 129, 0.15)' : 'rgba(255, 255, 255, 0.05)',
+                  border: useProxy ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: useProxy ? '#34d399' : '#cbd5e1',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-shield-alt" style={{ fontSize: '0.95rem', width: '18px', color: useProxy ? '#34d399' : '#94a3b8' }} />
+                <span>{useProxy ? 'Proxy: BẬT (Bảo vệ)' : 'Proxy: TẮT (Gốc)'}</span>
               </motion.button>
 
               {/* 2. Auto-Clicker AFK Settings */}
