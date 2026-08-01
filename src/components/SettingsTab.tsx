@@ -394,7 +394,7 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           </motion.div>
         )}
 
-        {/* Dark Mode Row */}
+        {/* Dark / Light Mode Row */}
         <div
           style={{
             padding: '16px',
@@ -405,25 +405,31 @@ export const SettingsTab: React.FC<SettingsTabProps> = ({
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <i className="fas fa-moon" style={{ color: '#2563eb', width: '26px', fontSize: '1.2rem' }}></i>
-            <span style={{ fontWeight: 600, color: 'var(--text-main)' }}>{t.darkMode}</span>
+            <i className={darkMode ? "fas fa-moon" : "fas fa-sun"} style={{ color: darkMode ? '#00f0ff' : '#f59e0b', width: '26px', fontSize: '1.25rem' }}></i>
+            <div>
+              <span style={{ fontWeight: 700, color: 'var(--text-main)' }}>{t.darkMode}</span>
+              <div style={{ fontSize: '0.74rem', color: darkMode ? '#38bdf8' : '#d97706', fontWeight: 750 }}>
+                {darkMode ? '🌙 Chế độ Cyber Dark' : '✨ Chế độ Thiên Thần Angel Gold (Trắng & Vàng Kim)'}
+              </div>
+            </div>
           </div>
 
           <motion.button
             whileTap={{ scale: 0.92 }}
             onClick={onToggleDarkMode}
             style={{
-              padding: '6px 16px',
+              padding: '8px 18px',
               borderRadius: '12px',
-              background: darkMode ? '#2563eb' : 'var(--input-bg)',
-              color: darkMode ? '#ffffff' : 'var(--text-main)',
-              fontWeight: 800,
-              border: darkMode ? 'none' : '1px solid var(--input-border)',
+              background: darkMode ? 'linear-gradient(135deg, #00f0ff, #0284c7)' : 'linear-gradient(135deg, #f59e0b, #d97706)',
+              color: darkMode ? '#060911' : '#ffffff',
+              fontWeight: 850,
+              fontSize: '0.82rem',
+              border: 'none',
               cursor: 'pointer',
-              boxShadow: darkMode ? '0 2px 8px rgba(37, 99, 235, 0.4)' : 'none',
+              boxShadow: darkMode ? '0 2px 10px rgba(0, 240, 255, 0.4)' : '0 2px 10px rgba(245, 158, 11, 0.4)',
             }}
           >
-            {darkMode ? t.on : t.off}
+            {darkMode ? 'Tối' : 'Sáng (Thiên Thần)'}
           </motion.button>
         </div>
 

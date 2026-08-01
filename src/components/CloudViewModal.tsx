@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Translations } from '../languages';
 
 interface CloudViewModalProps {
@@ -19,16 +20,16 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
   t,
 }) => {
   const [statusText, setStatusText] = useState(t?.cloudConnecting || 'Đang kết nối...');
-  const [showAssistMenu, setShowAssistMenu] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showFps, setShowFps] = useState(false);
   const [fpsVal, setFpsVal] = useState(60);
-  const [isFakeIp, setIsFakeIp] = useState(() => localStorage.getItem('fake_ip') === '1');
   const [ping, setPing] = useState<number>(28);
+
+  const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Dynamic Ping / Latency Simulation Loop
   useEffect(() => {
     const pingInterval = setInterval(() => {
-      // Simulate connection quality latency jitter between 18ms and 75ms
       const randomJitter = Math.floor(Math.random() * 25) - 10;
       setPing((prev) => {
         const nextPing = prev + randomJitter;
@@ -39,18 +40,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     return () => clearInterval(pingInterval);
   }, []);
 
-  // Floating button draggable position
-  const [pos, setPos] = useState(() => ({
-    x: typeof window !== 'undefined' ? Math.max(10, window.innerWidth - 70) : 300,
-    y: 120,
-  }));
-  const [isDragging, setIsDragging] = useState(false);
-  const dragRef = useRef({ startX: 0, startY: 0, initX: 0, initY: 0, moved: false });
-
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-
-  // Compute active src URL utilizing the standard app proxy (levivietnam)
+  // Compute active src URL utilizing standard app proxy (levivietnam)
   const getActiveUrl = () => {
     if (!url) return 'about:blank';
     if (url.startsWith('https://levivietnam.vercel.app')) {
@@ -90,50 +80,11 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [showFps]);
 
-  // Handle Drag Pointer Events for Floating Assistive Ball
-  const handlePointerDown = (e: React.PointerEvent) => {
-    setIsDragging(true);
-    dragRef.current = {
-      startX: e.clientX,
-      startY: e.clientY,
-      initX: pos.x,
-      initY: pos.y,
-      moved: false,
-    };
-    try {
-      (e.target as HTMLElement).setPointerCapture(e.pointerId);
-    } catch {}
-  };
-
-  const handlePointerMove = (e: React.PointerEvent) => {
-    if (!isDragging) return;
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
-      dragRef.current.moved = true;
-    }
-    const newX = Math.max(10, Math.min(window.innerWidth - 60, dragRef.current.initX + dx));
-    const newY = Math.max(10, Math.min(window.innerHeight - 60, dragRef.current.initY + dy));
-    setPos({ x: newX, y: newY });
-  };
-
-  const handlePointerUp = (e: React.PointerEvent) => {
-    if (isDragging) {
-      setIsDragging(false);
-      try {
-        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {}
-      if (!dragRef.current.moved) {
-        setShowAssistMenu((prev) => !prev);
-      }
-    }
-  };
-
   if (!url) return null;
 
   const handleReload = () => {
     setStatusText(t?.cloudReloading || 'Đang reload...');
-    setShowAssistMenu(false);
+    setIsDrawerOpen(false);
     if (iframeRef.current) {
       const currentUrl = iframeRef.current.src;
       iframeRef.current.src = 'about:blank';
@@ -147,80 +98,37 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     }
   };
 
-  const handleRestart = () => {
-    setStatusText(t?.cloudRestarting || 'Khởi động lại...');
-    handleReload();
-    setShowAssistMenu(false);
-    setTimeout(() => {
-      setStatusText(t?.cloudRestarted || 'Đã khởi động lại');
-      setTimeout(() => setStatusText(''), 2000);
-    }, 900);
-  };
-
-  const handleToggleFakeIp = () => {
-    const nextState = !isFakeIp;
-    setIsFakeIp(nextState);
-    localStorage.setItem('fake_ip', nextState ? '1' : '0');
-    showToast(nextState ? (t?.fakeIpOnToast || 'Bật Fake IP (ẩn danh)') : (t?.fakeIpOffToast || 'Tắt Fake IP'));
-    setShowAssistMenu(false);
-  };
-
-  const handleCleanRam = () => {
-    showToast(t?.cleanRamCleaningToast || 'Dọn RAM 3X...');
-    setShowAssistMenu(false);
-    setTimeout(() => showToast(t?.cleanRamSuccessToast || 'Dọn RAM hoàn tất! Giảm 1.2GB RAM'), 1000);
-  };
-
   const handleToggleFps = () => {
     const nextState = !showFps;
     setShowFps(nextState);
     showToast(nextState ? (t?.fpsMonitorOnToast || 'Bật FPS Monitor') : (t?.fpsMonitorOffToast || 'Tắt FPS Monitor'));
-    setShowAssistMenu(false);
+    setIsDrawerOpen(false);
   };
-
-  const handleToggleFullScreen = () => {
-    setShowAssistMenu(false);
-    if (!containerRef.current) return;
-    if (!document.fullscreenElement) {
-      if (containerRef.current.requestFullscreen) {
-        containerRef.current.requestFullscreen();
-      }
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
-      }
-    }
-  };
-
-  // Determine menu placement based on ball position
-  const isRightSide = pos.x > window.innerWidth / 2;
-  const menuLeft = isRightSide ? Math.max(10, pos.x - 220) : pos.x + 60;
-  const menuTop = Math.max(10, Math.min(window.innerHeight - 320, pos.y - 40));
 
   return (
-    <div id="cloud-view" ref={containerRef} style={{ display: 'flex' }}>
+    <div id="cloud-view" style={{ display: 'flex', position: 'fixed', inset: 0, zIndex: 10000, background: '#000000' }}>
       {/* Status Overlay */}
       {statusText && <div className="cloud-status">{statusText}</div>}
 
-      {/* Floating Real-time Ping / Latency Indicator Badge */}
+      {/* Floating Real-time Ping Indicator Badge */}
       <div
         style={{
           position: 'fixed',
           top: '12px',
           right: '12px',
-          zIndex: 1040,
+          zIndex: 10040,
           background: 'rgba(15, 23, 42, 0.85)',
-          backdropFilter: 'blur(8px)',
+          backdropFilter: 'blur(10px)',
           color: '#ffffff',
-          padding: '4px 10px',
+          padding: '4px 12px',
           borderRadius: '20px',
           fontSize: '0.75rem',
           fontWeight: 700,
           display: 'flex',
           alignItems: 'center',
           gap: '6px',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+          border: '1px solid rgba(255, 255, 255, 0.2)',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
           userSelect: 'none',
           pointerEvents: 'none',
         }}
@@ -251,100 +159,286 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
         style={{ border: 'none', width: '100%', height: '100%' }}
       />
 
-      {/* Floating Draggable Assistive Ball Button */}
-      <div
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        style={{
-          position: 'fixed',
-          left: `${pos.x}px`,
-          top: `${pos.y}px`,
-          width: '52px',
-          height: '52px',
-          borderRadius: '50%',
-          background: showAssistMenu ? '#2563eb' : 'rgba(15, 23, 42, 0.88)',
-          border: '2px solid rgba(255, 255, 255, 0.3)',
-          color: '#ffffff',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '1.25rem',
-          boxShadow: showAssistMenu
-            ? '0 0 20px rgba(37, 99, 235, 0.8)'
-            : '0 8px 24px rgba(0, 0, 0, 0.5)',
-          cursor: isDragging ? 'grabbing' : 'grab',
-          zIndex: 1050,
-          userSelect: 'none',
-          touchAction: 'none',
-          backdropFilter: 'blur(10px)',
-          transition: isDragging ? 'none' : 'background 0.2s, box-shadow 0.2s',
-        }}
-        title={t?.assistBallTitle || 'Nút trợ năng (kéo thả hoặc nhấn để mở menu)'}
-      >
-        <i className={showAssistMenu ? 'fas fa-times' : 'fas fa-sliders-h'}></i>
-      </div>
-
-      {showAssistMenu && (
-        <div
-          className="assist-menu"
+      {/* Floating Right-Edge Trigger Handle Tab (<) */}
+      {!isDrawerOpen && (
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          whileHover={{ scale: 1.05, x: -2 }}
+          whileTap={{ scale: 0.95 }}
+          onClick={() => setIsDrawerOpen(true)}
           style={{
-            display: 'flex',
             position: 'fixed',
-            left: `${menuLeft}px`,
-            top: `${menuTop}px`,
-            right: 'auto',
-            transform: 'none',
-            zIndex: 1051,
-                background: 'rgba(15, 23, 42, 0.95)',
-                backdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255, 255, 255, 0.15)',
-                borderRadius: '16px',
-                width: '220px',
-                padding: '8px',
-                boxShadow: '0 12px 36px rgba(0,0,0,0.6)',
+            right: 0,
+            top: '42%',
+            transform: 'translateY(-50%)',
+            zIndex: 10050,
+            background: 'linear-gradient(135deg, rgba(15, 23, 42, 0.92) 0%, rgba(30, 41, 59, 0.95) 100%)',
+            border: '1px solid rgba(0, 240, 255, 0.4)',
+            borderRight: 'none',
+            borderRadius: '20px 0 0 20px',
+            padding: '14px 10px 14px 14px',
+            color: '#00f0ff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            boxShadow: '-4px 0 20px rgba(0, 240, 255, 0.25), -2px 0 10px rgba(0, 0, 0, 0.5)',
+            cursor: 'pointer',
+            backdropFilter: 'blur(12px)',
+          }}
+          title="Nhấn để mở Bảng Trợ Năng Cloud"
+        >
+          <motion.i
+            animate={{ x: [-2, 2, -2] }}
+            transition={{ repeat: Infinity, duration: 1.8, ease: 'easeInOut' }}
+            className="fas fa-chevron-left"
+            style={{ fontSize: '1.2rem', textShadow: '0 0 10px rgba(0, 240, 255, 0.8)' }}
+          />
+        </motion.div>
+      )}
+
+      {/* Side Drawer Menu Overlay & Animated Drawer Panel */}
+      <AnimatePresence>
+        {isDrawerOpen && (
+          <>
+            {/* Dark Backdrop */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsDrawerOpen(false)}
+              style={{
+                position: 'fixed',
+                inset: 0,
+                background: 'rgba(0, 0, 0, 0.5)',
+                backdropFilter: 'blur(4px)',
+                zIndex: 10051,
+              }}
+            />
+
+            {/* Edge Side Drawer */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 280 }}
+              style={{
+                position: 'fixed',
+                right: 0,
+                top: 0,
+                bottom: 0,
+                width: '280px',
+                maxWidth: '85vw',
+                zIndex: 10052,
+                background: 'linear-gradient(180deg, rgba(15, 23, 42, 0.96) 0%, rgba(9, 13, 22, 0.98) 100%)',
+                backdropFilter: 'blur(20px)',
+                borderLeft: '1px solid rgba(0, 240, 255, 0.3)',
+                boxShadow: '-10px 0 40px rgba(0, 0, 0, 0.8)',
+                display: 'flex',
+                flexDirection: 'column',
+                padding: '20px 16px',
+                overflowY: 'auto',
               }}
             >
-              <div className="menu-row" style={{ pointerEvents: 'none', borderBottom: '1px solid rgba(255,255,255,0.1)', marginBottom: '4px', paddingBottom: '6px' }}>
-                <i className="fas fa-wifi" style={{ color: ping < 40 ? '#34d399' : ping < 75 ? '#fbbf24' : '#f87171' }}></i>
-                <span>Ping: <strong style={{ color: ping < 40 ? '#34d399' : ping < 75 ? '#fbbf24' : '#f87171' }}>{ping} ms</strong> ({ping < 40 ? (t?.pingGreat || 'Tốt') : ping < 75 ? (t?.pingGood || 'Ổn định') : (t?.pingFair || 'Chậm')})</span>
-              </div>
-              <div className="menu-row" onClick={handleReload}>
-                <i className="fas fa-sync" style={{ color: '#60a5fa' }}></i> {t?.reloadCloud || 'Tải lại Cloud'}
-              </div>
-              <div className="menu-row" onClick={handleToggleFullScreen}>
-                <i className="fas fa-expand" style={{ color: '#34d399' }}></i> {t?.fullscreen || 'Toàn màn hình'}
-              </div>
-              <div className="menu-row" onClick={handleRestart}>
-                <i className="fas fa-redo" style={{ color: '#f59e0b' }}></i> {t?.restartCloud || 'Khởi động lại'}
-              </div>
-              <div className="menu-row" onClick={handleToggleFakeIp}>
-                <i className="fas fa-globe" style={{ color: '#a78bfa' }}></i> {isFakeIp ? (t?.fakeIpMenuOff || 'Tắt Fake IP') : (t?.fakeIpMenuOn || 'Fake IP ẩn danh')}
-              </div>
-              <div className="menu-row" onClick={handleCleanRam}>
-                <i className="fas fa-broom" style={{ color: '#38bdf8' }}></i> {t?.cleanRam || 'Dọn RAM 3X'}
-              </div>
-              <div className="menu-row" onClick={handleToggleFps}>
-                <i className="fas fa-tachometer-alt" style={{ color: '#f43f5e' }}></i> {showFps ? (t?.fpsMonitorMenuOff || 'Tắt FPS Monitor') : (t?.fpsMonitorMenuOn || 'Bật FPS Monitor')}
-              </div>
-              {onOpenBugReportModal && (
-                <div className="menu-row" onClick={() => { setShowAssistMenu(false); onOpenBugReportModal(); }}>
-                  <i className="fas fa-bug" style={{ color: '#f87171' }}></i> Báo Lỗi & Phản Hồi
-                </div>
-              )}
+              {/* Drawer Header */}
               <div
-                className="menu-row"
-                onClick={() => {
-                  setShowAssistMenu(false);
-                  onClose();
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  paddingBottom: '16px',
+                  borderBottom: '1px solid rgba(255, 255, 255, 0.12)',
+                  marginBottom: '16px',
                 }}
-                style={{ color: '#f87171', borderTop: '1px solid rgba(255,255,255,0.1)', marginTop: '4px', paddingTop: '8px' }}
               >
-                <i className="fas fa-times-circle"></i> {t?.exitCloud || 'Thoát Cloud Sandbox'}
-              </div>
-            </div>
-          )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{
+                      width: '36px',
+                      height: '36px',
+                      borderRadius: '12px',
+                      background: 'rgba(0, 240, 255, 0.15)',
+                      border: '1px solid rgba(0, 240, 255, 0.3)',
+                      color: '#00f0ff',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      fontSize: '1rem',
+                    }}
+                  >
+                    <i className="fas fa-sliders-h" />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, color: '#f8fafc', fontSize: '1.05rem', fontWeight: 800 }}>
+                      Trợ Năng Cloud
+                    </h4>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Bảng điều khiển nhanh</span>
+                  </div>
+                </div>
 
+                <motion.button
+                  whileTap={{ scale: 0.9 }}
+                  onClick={() => setIsDrawerOpen(false)}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: '1px solid rgba(255, 255, 255, 0.2)',
+                    color: '#ffffff',
+                    width: '34px',
+                    height: '34px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <i className="fas fa-chevron-right" style={{ fontSize: '0.9rem' }} />
+                </motion.button>
+              </div>
+
+              {/* Ping Status Banner inside Drawer */}
+              <div
+                style={{
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  borderRadius: '14px',
+                  padding: '12px 14px',
+                  marginBottom: '18px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <i className="fas fa-wifi" style={{ color: ping < 40 ? '#34d399' : ping < 75 ? '#fbbf24' : '#f87171', fontSize: '1.1rem' }} />
+                  <div>
+                    <div style={{ fontSize: '0.75rem', color: '#94a3b8' }}>Độ Trễ Mạng (Ping)</div>
+                    <div style={{ fontWeight: 800, color: ping < 40 ? '#34d399' : ping < 75 ? '#fbbf24' : '#f87171', fontSize: '0.95rem' }}>
+                      {ping} ms ({ping < 40 ? (t?.pingGreat || 'Tốt') : ping < 75 ? (t?.pingGood || 'Ổn định') : (t?.pingFair || 'Chậm')})
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Options List */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', flex: 1 }}>
+                {/* 1. Reload Cloud */}
+                <motion.button
+                  whileHover={{ scale: 1.02, x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleReload}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    background: 'rgba(59, 130, 246, 0.12)',
+                    border: '1px solid rgba(59, 130, 246, 0.3)',
+                    color: '#60a5fa',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <i className="fas fa-sync-alt" style={{ fontSize: '1.1rem', width: '22px' }} />
+                  <span>{t?.reloadCloud || 'Tải lại Cloud'}</span>
+                </motion.button>
+
+                {/* 2. FPS Monitor Toggle */}
+                <motion.button
+                  whileHover={{ scale: 1.02, x: 2 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={handleToggleFps}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '12px',
+                    width: '100%',
+                    padding: '14px 16px',
+                    borderRadius: '14px',
+                    background: showFps ? 'rgba(244, 63, 94, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                    border: showFps ? '1px solid rgba(244, 63, 94, 0.4)' : '1px solid rgba(255, 255, 255, 0.12)',
+                    color: showFps ? '#fb7185' : '#f8fafc',
+                    fontWeight: 700,
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                  }}
+                >
+                  <i className="fas fa-tachometer-alt" style={{ fontSize: '1.1rem', width: '22px', color: '#f43f5e' }} />
+                  <span>{showFps ? (t?.fpsMonitorMenuOff || 'Tắt FPS Monitor') : (t?.fpsMonitorMenuOn || 'Bật FPS Monitor')}</span>
+                </motion.button>
+
+                {/* 3. Bug Report Modal Link */}
+                {onOpenBugReportModal && (
+                  <motion.button
+                    whileHover={{ scale: 1.02, x: 2 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => {
+                      setIsDrawerOpen(false);
+                      onOpenBugReportModal();
+                    }}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '12px',
+                      width: '100%',
+                      padding: '14px 16px',
+                      borderRadius: '14px',
+                      background: 'rgba(239, 68, 68, 0.12)',
+                      border: '1px solid rgba(239, 68, 68, 0.3)',
+                      color: '#f87171',
+                      fontWeight: 700,
+                      fontSize: '0.9rem',
+                      cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                  >
+                    <i className="fas fa-bug" style={{ fontSize: '1.1rem', width: '22px' }} />
+                    <span>Báo Lỗi & Phản Hồi</span>
+                  </motion.button>
+                )}
+              </div>
+
+              {/* Exit Cloud Button */}
+              <div style={{ paddingTop: '16px', borderTop: '1px solid rgba(255, 255, 255, 0.12)', marginTop: 'auto' }}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setIsDrawerOpen(false);
+                    onClose();
+                  }}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '10px',
+                    width: '100%',
+                    padding: '14px',
+                    borderRadius: '16px',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#ffffff',
+                    fontWeight: 850,
+                    fontSize: '0.95rem',
+                    border: 'none',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 16px rgba(239, 68, 68, 0.4)',
+                  }}
+                >
+                  <i className="fas fa-sign-out-alt" />
+                  <span>{t?.exitCloud || 'Thoát Cloud Sandbox'}</span>
+                </motion.button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* FPS Overlay Indicator */}
       {showFps && (
         <div className="fps-monitor" style={{ display: 'block' }}>
           FPS: <span id="fps-val">{fpsVal}</span>
@@ -353,3 +447,4 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     </div>
   );
 };
+
