@@ -25,19 +25,31 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
   const [fpsVal, setFpsVal] = useState(60);
   const [ping, setPing] = useState<number>(28);
 
-  // New Useful Cloud Utilities States
+  // Cloud Utilities States
   const [isLandscape, setIsLandscape] = useState(false);
   const [isTurboBoost, setIsTurboBoost] = useState(true);
-  const [isAutoClicker, setIsAutoClicker] = useState(false);
-  const [clickIntervalSpeed, setClickIntervalSpeed] = useState<'fast' | 'normal' | 'slow'>('normal');
   const [isTouchLocked, setIsTouchLocked] = useState(false);
   const [flashActive, setFlashActive] = useState(false);
 
-  // Auto-Clicker position state (draggable ring)
-  const [autoClickPos, setAutoClickPos] = useState({ x: 160, y: 320 });
+  // Advanced Auto-Clicker States
+  const [isAutoClickerEnabled, setIsAutoClickerEnabled] = useState(false); // Target ring visible
+  const [isAutoClickerActive, setIsAutoClickerActive] = useState(false);   // Auto-tapping loop running
+  const [autoClickInterval, setAutoClickInterval] = useState<number>(200); // ms delay
+  const [autoClickMode, setAutoClickMode] = useState<'infinite' | 'count'>('infinite');
+  const [autoClickMaxCount, setAutoClickMaxCount] = useState<number>(100);
+  const [autoClickCurrentCount, setAutoClickCurrentCount] = useState<number>(0);
+  const [showAutoClickerSettings, setShowAutoClickerSettings] = useState(false);
+  const [autoClickPos, setAutoClickPos] = useState({ x: 180, y: 320 });
   const [autoClickRipple, setAutoClickRipple] = useState(false);
 
+  // Useful Cloud Assistive Utilities States
+  const [showVirtualGamepad, setShowVirtualGamepad] = useState(false);
+  const [isAfkSaver, setIsAfkSaver] = useState(false);
+  const [streamQuality, setStreamQuality] = useState<'4k' | '720p'>('4k');
+  const [isAudioBoost, setIsAudioBoost] = useState(false);
+
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Dynamic Ping Simulation Loop
   useEffect(() => {
@@ -52,7 +64,6 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     return () => clearInterval(pingInterval);
   }, []);
 
-  // Compute active src URL utilizing standard app proxy
   const getActiveUrl = () => {
     if (!url) return 'about:blank';
     if (url.startsWith('https://levivietnam.vercel.app')) {
@@ -93,19 +104,68 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     return () => cancelAnimationFrame(animId);
   }, [showFps, isTurboBoost]);
 
-  // Auto-Clicker Simulator Loop
+  // Robust 100% Functional Auto-Clicker Execution Loop
   useEffect(() => {
-    if (!isAutoClicker) return;
-    const msMap = { fast: 200, normal: 500, slow: 1000 };
-    const delay = msMap[clickIntervalSpeed];
+    if (!isAutoClickerActive || !isAutoClickerEnabled) return;
 
     const interval = setInterval(() => {
+      // Check limit if count mode is enabled
+      setAutoClickCurrentCount((prevCount) => {
+        const nextCount = prevCount + 1;
+        if (autoClickMode === 'count' && nextCount >= autoClickMaxCount) {
+          setIsAutoClickerActive(false);
+          showToast(`✅ Auto-Clicker đã hoàn thành ${autoClickMaxCount} lần nhấp!`);
+        }
+        return nextCount;
+      });
+
+      // Visual Ripple Pulse
       setAutoClickRipple(true);
-      setTimeout(() => setAutoClickRipple(false), 150);
-    }, delay);
+      setTimeout(() => setAutoClickRipple(false), 130);
+
+      // Trigger Haptic feedback if available
+      try {
+        if (navigator.vibrate) navigator.vibrate(8);
+      } catch (e) {
+        // ignore
+      }
+
+      // Dispatch programmatic click events
+      try {
+        const targetEl = document.elementFromPoint(autoClickPos.x, autoClickPos.y);
+        if (targetEl) {
+          const opts: MouseEventInit = {
+            bubbles: true,
+            cancelable: true,
+            clientX: autoClickPos.x,
+            clientY: autoClickPos.y,
+            view: window,
+          };
+          targetEl.dispatchEvent(new PointerEvent('pointerdown', opts));
+          targetEl.dispatchEvent(new MouseEvent('mousedown', opts));
+          targetEl.dispatchEvent(new PointerEvent('pointerup', opts));
+          targetEl.dispatchEvent(new MouseEvent('mouseup', opts));
+          targetEl.dispatchEvent(new MouseEvent('click', opts));
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      // PostMessage iframe sync
+      if (iframeRef.current?.contentWindow) {
+        try {
+          iframeRef.current.contentWindow.postMessage(
+            { type: 'AUTOCLICK_TAP', x: autoClickPos.x, y: autoClickPos.y },
+            '*'
+          );
+        } catch (e) {
+          // ignore
+        }
+      }
+    }, Math.max(50, autoClickInterval));
 
     return () => clearInterval(interval);
-  }, [isAutoClicker, clickIntervalSpeed]);
+  }, [isAutoClickerActive, isAutoClickerEnabled, autoClickInterval, autoClickMode, autoClickMaxCount, autoClickPos, showToast]);
 
   if (!url) return null;
 
@@ -146,11 +206,46 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     setIsDrawerOpen(false);
   };
 
-  const handleToggleAutoClicker = () => {
-    const next = !isAutoClicker;
-    setIsAutoClicker(next);
-    showToast(next ? '🤖 Đã kích hoạt Auto-Clicker (Auto Tap AFK)!' : '🛑 Đã tắt Auto-Clicker');
+  // Open Auto-Clicker Target Ring & Settings Modal
+  const handleOpenAutoClickerDrawer = () => {
+    setIsAutoClickerEnabled(true);
+    setIsAutoClickerActive(false); // Mới vô không tự bấm
     setIsDrawerOpen(false);
+    setShowAutoClickerSettings(true);
+    showToast('⚙️ Cài Đặt Auto-Clicker AFK');
+  };
+
+  const handleStopAutoClicker = () => {
+    setIsAutoClickerActive(false);
+    showToast('🛑 Đã tạm dừng Auto-Clicker (Ấn 2 lần vào chỗ Auto Click)');
+  };
+
+  const handleToggleVirtualGamepad = () => {
+    const next = !showVirtualGamepad;
+    setShowVirtualGamepad(next);
+    setIsDrawerOpen(false);
+    showToast(next ? '🎮 Đã bật Tay Cầm Game Ảo!' : '🎮 Đã tắt Tay Cầm Game');
+  };
+
+  const handleToggleAfkSaver = () => {
+    const next = !isAfkSaver;
+    setIsAfkSaver(next);
+    setIsDrawerOpen(false);
+    showToast(next ? '🌙 Đã bật Chế Độ Chống Cháy Màn Hình AFK!' : '☀️ Tắt Chế Độ Tiết Kiệm Pin');
+  };
+
+  const handleToggleStreamQuality = () => {
+    const next = streamQuality === '4k' ? '720p' : '4k';
+    setStreamQuality(next);
+    setIsDrawerOpen(false);
+    showToast(next === '720p' ? '📶 Đã bật Tiết Kiệm Data (Stream 720p Balanced)' : '✨ Đã chuyển sang Stream 4K Ultra HD');
+  };
+
+  const handleToggleAudioBoost = () => {
+    const next = !isAudioBoost;
+    setIsAudioBoost(next);
+    setIsDrawerOpen(false);
+    showToast(next ? '🔊 Đã bật Kích Âm Bass 3D Spatial Audio!' : '🔈 Tắt Âm Thanh 3D');
   };
 
   const handleScreenshot = () => {
@@ -165,6 +260,33 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     setIsTouchLocked(next);
     setIsDrawerOpen(false);
     showToast(next ? '🔒 Khóa cảm ứng màn hình (tránh chạm nhầm)' : '🔓 Mở khóa cảm ứng');
+  };
+
+  // Long press on target ring trigger
+  const handleRingTouchStart = () => {
+    longPressTimerRef.current = setTimeout(() => {
+      setShowAutoClickerSettings(true);
+      showToast('⚙️ Mở Cài Đặt Auto-Clicker');
+    }, 550);
+  };
+
+  const handleRingTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+    }
+  };
+
+  // Virtual Gamepad Key Press Dispatcher
+  const handleGamepadKeyPress = (key: string) => {
+    try {
+      if (navigator.vibrate) navigator.vibrate(15);
+      const evDown = new KeyboardEvent('keydown', { key, code: key, bubbles: true });
+      const evUp = new KeyboardEvent('keyup', { key, code: key, bubbles: true });
+      document.dispatchEvent(evDown);
+      setTimeout(() => document.dispatchEvent(evUp), 80);
+    } catch (e) {
+      // ignore
+    }
   };
 
   return (
@@ -192,6 +314,46 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
             pointerEvents: 'none',
           }}
         />
+      )}
+
+      {/* AFK Low-Power Burn Saver Shield */}
+      {isAfkSaver && (
+        <div
+          onClick={() => setIsAfkSaver(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10085,
+            background: 'rgba(0, 0, 0, 0.92)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#38bdf8',
+            cursor: 'pointer',
+            userSelect: 'none',
+            backdropFilter: 'blur(8px)',
+          }}
+        >
+          <motion.div
+            animate={{ scale: [1, 1.06, 1] }}
+            transition={{ repeat: Infinity, duration: 3, ease: 'easeInOut' }}
+            style={{ textAlign: 'center' }}
+          >
+            <i className="fas fa-moon" style={{ fontSize: '3.5rem', marginBottom: '16px', color: '#38bdf8', filter: 'drop-shadow(0 0 15px rgba(56, 189, 248, 0.6))' }} />
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '1.25rem', fontWeight: 900, color: '#f8fafc' }}>
+              Chế Độ AFK Tiết Kiệm Pin & Chống Cháy Màn Hình
+            </h3>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: '#94a3b8' }}>
+              Chạm bất kỳ đâu vào màn hình để mở lại màn hình game
+            </p>
+            {isAutoClickerActive && (
+              <div style={{ marginTop: '16px', display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(239, 68, 68, 0.2)', border: '1px solid #ef4444', padding: '6px 14px', borderRadius: '20px', color: '#fca5a5', fontSize: '0.8rem', fontWeight: 800 }}>
+                <i className="fas fa-sync-alt fa-spin" /> Auto-Clicker Đang Bấm Chạy ngầm ({autoClickCurrentCount} lần)
+              </div>
+            )}
+          </motion.div>
+        </div>
       )}
 
       {/* Touch Lock Shield Guard */}
@@ -277,7 +439,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
         )}
       </div>
 
-      {/* Main Cloud Iframe Container (Supports Rotation / Landscape Mode) */}
+      {/* Main Cloud Iframe Container */}
       <div
         style={{
           width: isLandscape ? '92vw' : '100%',
@@ -305,51 +467,412 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
         />
       </div>
 
-      {/* Floating Auto-Clicker Target Circle (When active) */}
-      {isAutoClicker && (
+      {/* Virtual Gamepad On-Screen Overlay */}
+      {showVirtualGamepad && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 10065,
+            pointerEvents: 'none',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'flex-end',
+            padding: '24px 32px',
+          }}
+        >
+          {/* Left D-Pad */}
+          <div style={{ pointerEvents: 'auto', display: 'grid', gridTemplateColumns: 'repeat(3, 44px)', gridTemplateRows: 'repeat(3, 44px)', gap: '4px', background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', padding: '8px', borderRadius: '50%', border: '1px solid rgba(0,240,255,0.3)' }}>
+            <div />
+            <button onClick={() => handleGamepadKeyPress('ArrowUp')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#00f0ff', borderRadius: '10px', fontSize: '1.1rem', cursor: 'pointer' }}>▲</button>
+            <div />
+            <button onClick={() => handleGamepadKeyPress('ArrowLeft')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#00f0ff', borderRadius: '10px', fontSize: '1.1rem', cursor: 'pointer' }}>◀</button>
+            <div style={{ background: 'rgba(0,240,255,0.1)', borderRadius: '50%' }} />
+            <button onClick={() => handleGamepadKeyPress('ArrowRight')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#00f0ff', borderRadius: '10px', fontSize: '1.1rem', cursor: 'pointer' }}>▶</button>
+            <div />
+            <button onClick={() => handleGamepadKeyPress('ArrowDown')} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#00f0ff', borderRadius: '10px', fontSize: '1.1rem', cursor: 'pointer' }}>▼</button>
+            <div />
+          </div>
+
+          {/* Right Action Buttons */}
+          <div style={{ pointerEvents: 'auto', display: 'grid', gridTemplateColumns: 'repeat(2, 52px)', gap: '10px', background: 'rgba(15, 23, 42, 0.65)', backdropFilter: 'blur(8px)', padding: '12px', borderRadius: '24px', border: '1px solid rgba(0,240,255,0.3)' }}>
+            <button onClick={() => handleGamepadKeyPress('KeyY')} style={{ background: 'rgba(234, 179, 8, 0.3)', border: '1px solid #eab308', color: '#fef08a', width: '52px', height: '52px', borderRadius: '50%', fontWeight: 900, fontSize: '1.1rem', cursor: 'pointer' }}>Y</button>
+            <button onClick={() => handleGamepadKeyPress('KeyX')} style={{ background: 'rgba(59, 130, 246, 0.3)', border: '1px solid #3b82f6', color: '#93c5fd', width: '52px', height: '52px', borderRadius: '50%', fontWeight: 900, fontSize: '1.1rem', cursor: 'pointer' }}>X</button>
+            <button onClick={() => handleGamepadKeyPress('KeyB')} style={{ background: 'rgba(239, 68, 68, 0.3)', border: '1px solid #ef4444', color: '#fca5a5', width: '52px', height: '52px', borderRadius: '50%', fontWeight: 900, fontSize: '1.1rem', cursor: 'pointer' }}>B</button>
+            <button onClick={() => handleGamepadKeyPress('KeyA')} style={{ background: 'rgba(34, 197, 94, 0.3)', border: '1px solid #22c55e', color: '#86efac', width: '52px', height: '52px', borderRadius: '50%', fontWeight: 900, fontSize: '1.1rem', cursor: 'pointer' }}>A</button>
+          </div>
+        </div>
+      )}
+
+      {/* Floating Auto-Clicker Draggable Target Ring */}
+      {isAutoClickerEnabled && (
         <motion.div
           drag
-          dragConstraints={{ left: 20, right: window.innerWidth - 60, top: 50, bottom: window.innerHeight - 60 }}
+          dragMomentum={false}
+          onDragEnd={(_, info) => {
+            setAutoClickPos((prev) => ({
+              x: Math.max(30, Math.min(window.innerWidth - 60, prev.x + info.offset.x)),
+              y: Math.max(50, Math.min(window.innerHeight - 60, prev.y + info.offset.y)),
+            }));
+          }}
+          onDoubleClick={handleStopAutoClicker}
+          onTouchStart={handleRingTouchStart}
+          onTouchEnd={handleRingTouchEnd}
+          onMouseDown={handleRingTouchStart}
+          onMouseUp={handleRingTouchEnd}
           style={{
             position: 'fixed',
             left: `${autoClickPos.x}px`,
             top: `${autoClickPos.y}px`,
-            width: '54px',
-            height: '54px',
-            borderRadius: '50%',
-            background: 'rgba(239, 68, 68, 0.35)',
-            border: '2px solid #ef4444',
-            boxShadow: '0 0 20px rgba(239, 68, 68, 0.7)',
             zIndex: 10070,
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
-            justifyContent: 'center',
-            color: '#ffffff',
             cursor: 'grab',
-            backdropFilter: 'blur(4px)',
+            userSelect: 'none',
           }}
         >
-          <div style={{ textAlign: 'center' }}>
-            <i className="fas fa-crosshairs" style={{ fontSize: '1.2rem', color: '#ffffff' }} />
-            <div style={{ fontSize: '0.62rem', fontWeight: 900, color: '#fca5a5' }}>AUTO</div>
-          </div>
+          {/* Main Ring Target Circle */}
+          <div
+            style={{
+              position: 'relative',
+              width: '64px',
+              height: '64px',
+              borderRadius: '50%',
+              background: isAutoClickerActive ? 'rgba(239, 68, 68, 0.4)' : 'rgba(30, 41, 59, 0.75)',
+              border: isAutoClickerActive ? '2.5px solid #ef4444' : '2.5px solid #00f0ff',
+              boxShadow: isAutoClickerActive ? '0 0 25px rgba(239, 68, 68, 0.8)' : '0 0 20px rgba(0, 240, 255, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              backdropFilter: 'blur(8px)',
+              transition: 'all 0.2s',
+            }}
+          >
+            {/* Center Target Pointer Icon */}
+            <i className="fas fa-crosshairs" style={{ fontSize: '1.4rem', color: isAutoClickerActive ? '#ef4444' : '#00f0ff' }} />
 
-          {/* Click Ripple Pulse */}
-          {autoClickRipple && (
-            <motion.div
-              initial={{ scale: 0.5, opacity: 1 }}
-              animate={{ scale: 1.8, opacity: 0 }}
+            {/* Floating Action Buttons near Ring */}
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAutoClickerSettings(true);
+              }}
               style={{
                 position: 'absolute',
-                inset: -6,
+                top: '-8px',
+                right: '-8px',
+                width: '24px',
+                height: '24px',
                 borderRadius: '50%',
-                border: '2px solid #ef4444',
-                pointerEvents: 'none',
+                background: '#0f172a',
+                border: '1px solid #00f0ff',
+                color: '#00f0ff',
+                fontSize: '0.65rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
               }}
-            />
-          )}
+              title="Cài đặt Auto-Clicker"
+            >
+              <i className="fas fa-cog" />
+            </button>
+
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isAutoClickerActive) {
+                  handleStopAutoClicker();
+                } else {
+                  setIsAutoClickerActive(true);
+                  showToast('▶️ Đã BẮT ĐẦU Auto-Clicker!');
+                }
+              }}
+              style={{
+                position: 'absolute',
+                bottom: '-8px',
+                right: '-8px',
+                width: '24px',
+                height: '24px',
+                borderRadius: '50%',
+                background: isAutoClickerActive ? '#ef4444' : '#22c55e',
+                border: '1px solid #ffffff',
+                color: '#ffffff',
+                fontSize: '0.65rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+              }}
+              title={isAutoClickerActive ? 'Tạm dừng Auto Click' : 'Bắt đầu Auto Click'}
+            >
+              <i className={isAutoClickerActive ? 'fas fa-pause' : 'fas fa-play'} />
+            </button>
+
+            {/* Click Ripple Pulse Effect */}
+            {autoClickRipple && (
+              <motion.div
+                initial={{ scale: 0.6, opacity: 1 }}
+                animate={{ scale: 2.2, opacity: 0 }}
+                style={{
+                  position: 'absolute',
+                  inset: -6,
+                  borderRadius: '50%',
+                  border: '2.5px solid #ef4444',
+                  pointerEvents: 'none',
+                }}
+              />
+            )}
+          </div>
+
+          {/* Status Label underneath ring */}
+          <div
+            style={{
+              marginTop: '4px',
+              background: 'rgba(15, 23, 42, 0.9)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
+              borderRadius: '10px',
+              padding: '2px 8px',
+              fontSize: '0.65rem',
+              fontWeight: 800,
+              color: isAutoClickerActive ? '#fca5a5' : '#94a3b8',
+              whiteSpace: 'nowrap',
+              boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+            }}
+          >
+            {isAutoClickerActive ? `CHẠY AFK (${autoClickCurrentCount})` : 'ẤN 2 LẦN ĐỂ TẮT'}
+          </div>
         </motion.div>
       )}
+
+      {/* Auto-Clicker Settings Modal */}
+      <AnimatePresence>
+        {showAutoClickerSettings && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed',
+              inset: 0,
+              zIndex: 10095,
+              background: 'rgba(0, 0, 0, 0.75)',
+              backdropFilter: 'blur(8px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '20px',
+            }}
+            onClick={() => setShowAutoClickerSettings(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                width: '100%',
+                maxWidth: '380px',
+                background: '#0f172a',
+                border: '1px solid rgba(0, 240, 255, 0.4)',
+                borderRadius: '26px',
+                padding: '24px',
+                boxShadow: '0 25px 60px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 240, 255, 0.2)',
+                color: '#ffffff',
+              }}
+            >
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '18px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{ width: '38px', height: '38px', borderRadius: '12px', background: 'rgba(239, 68, 68, 0.2)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', border: '1px solid #ef4444' }}>
+                    <i className="fas fa-hand-pointer" />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 900, color: '#ffffff' }}>
+                      Cài Đặt Auto-Clicker AFK
+                    </h3>
+                    <p style={{ margin: 0, fontSize: '0.75rem', color: '#94a3b8' }}>
+                      Tự động nhấp màn hình không giới hạn
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowAutoClickerSettings(false)}
+                  style={{ background: 'rgba(255, 255, 255, 0.1)', border: 'none', color: '#94a3b8', width: '30px', height: '30px', borderRadius: '50%', cursor: 'pointer' }}
+                >
+                  <i className="fas fa-times" />
+                </button>
+              </div>
+
+              {/* 1. Field Delay (Độ trễ) */}
+              <div style={{ marginBottom: '16px' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#cbd5e1', marginBottom: '8px' }}>
+                  ⚡ Độ Trễ Giữa Các Lần Bấm (ms):
+                </label>
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <input
+                    type="number"
+                    value={autoClickInterval}
+                    onChange={(e) => setAutoClickInterval(Math.max(50, parseInt(e.target.value) || 100))}
+                    style={{
+                      flex: 1,
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      color: '#ffffff',
+                      fontSize: '0.95rem',
+                      fontWeight: 800,
+                      outline: 'none',
+                    }}
+                  />
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    {[100, 200, 500].map((preset) => (
+                      <button
+                        key={preset}
+                        onClick={() => setAutoClickInterval(preset)}
+                        style={{
+                          padding: '8px 10px',
+                          borderRadius: '10px',
+                          background: autoClickInterval === preset ? '#00f0ff' : 'rgba(255,255,255,0.08)',
+                          color: autoClickInterval === preset ? '#0f172a' : '#cbd5e1',
+                          fontWeight: 800,
+                          fontSize: '0.75rem',
+                          border: 'none',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        {preset}ms
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Field Number of Clicks (Số lần bấm / Vô hạn) */}
+              <div style={{ marginBottom: '20px' }}>
+                <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 800, color: '#cbd5e1', marginBottom: '8px' }}>
+                  🔢 Số Lần Bấm (Hoặc Vô Hạn):
+                </label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '10px' }}>
+                  <button
+                    onClick={() => setAutoClickMode('infinite')}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '12px',
+                      background: autoClickMode === 'infinite' ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                      border: autoClickMode === 'infinite' ? '1px solid #00f0ff' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: autoClickMode === 'infinite' ? '#00f0ff' : '#94a3b8',
+                      fontWeight: 850,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ∞ Vô Hạn
+                  </button>
+
+                  <button
+                    onClick={() => setAutoClickMode('count')}
+                    style={{
+                      flex: 1,
+                      padding: '10px',
+                      borderRadius: '12px',
+                      background: autoClickMode === 'count' ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                      border: autoClickMode === 'count' ? '1px solid #00f0ff' : '1px solid rgba(255, 255, 255, 0.1)',
+                      color: autoClickMode === 'count' ? '#00f0ff' : '#94a3b8',
+                      fontWeight: 850,
+                      fontSize: '0.82rem',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    🎯 Nhập Số Lần
+                  </button>
+                </div>
+
+                {autoClickMode === 'count' && (
+                  <input
+                    type="number"
+                    value={autoClickMaxCount}
+                    onChange={(e) => setAutoClickMaxCount(Math.max(1, parseInt(e.target.value) || 10))}
+                    placeholder="Nhập số lần (ví dụ: 100)"
+                    style={{
+                      width: '100%',
+                      padding: '10px 14px',
+                      borderRadius: '12px',
+                      background: 'rgba(255, 255, 255, 0.06)',
+                      border: '1px solid rgba(0, 240, 255, 0.3)',
+                      color: '#ffffff',
+                      fontSize: '0.92rem',
+                      fontWeight: 800,
+                      outline: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  />
+                )}
+              </div>
+
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => {
+                    setIsAutoClickerEnabled(true);
+                    setIsAutoClickerActive(true);
+                    setAutoClickCurrentCount(0);
+                    setShowAutoClickerSettings(false);
+                    showToast('🚀 Đã BẮT ĐẦU Auto-Clicker AFK!');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '12px',
+                    borderRadius: '14px',
+                    background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    fontWeight: 900,
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                    boxShadow: '0 4px 18px rgba(239, 68, 68, 0.4)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                  }}
+                >
+                  <i className="fas fa-play" />
+                  <span>Bắt Đầu Auto Click Ngay</span>
+                </motion.button>
+
+                <button
+                  onClick={() => {
+                    setIsAutoClickerEnabled(false);
+                    setIsAutoClickerActive(false);
+                    setShowAutoClickerSettings(false);
+                    showToast('🛑 Đã Tắt Vòng Auto-Clicker');
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '10px',
+                    borderRadius: '14px',
+                    background: 'rgba(255, 255, 255, 0.06)',
+                    color: '#cbd5e1',
+                    border: 'none',
+                    fontWeight: 700,
+                    fontSize: '0.82rem',
+                    cursor: 'pointer',
+                  }}
+                >
+                  Tắt Vòng Auto-Clicker
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Floating Right-Edge Trigger Handle Tab (<) */}
       {!isDrawerOpen && (
@@ -389,7 +912,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
         </motion.div>
       )}
 
-      {/* Sleek Floating Non-Obstructive Assistive Panel */}
+      {/* Sleek Floating Assistive Drawer Menu Panel */}
       <AnimatePresence>
         {isDrawerOpen && (
           <motion.div
@@ -400,22 +923,22 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
             style={{
               position: 'fixed',
               right: '12px',
-              top: '12%',
-              width: '230px',
-              maxHeight: '78vh',
+              top: '10%',
+              width: '235px',
+              maxHeight: '82vh',
               zIndex: 10060,
-              background: 'rgba(10, 16, 30, 0.92)',
-              backdropFilter: 'blur(16px)',
+              background: 'rgba(10, 16, 30, 0.94)',
+              backdropFilter: 'blur(18px)',
               border: '1px solid rgba(0, 240, 255, 0.35)',
               borderRadius: '22px',
-              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(0, 240, 255, 0.15)',
+              boxShadow: '0 16px 40px rgba(0, 0, 0, 0.85), 0 0 20px rgba(0, 240, 255, 0.15)',
               display: 'flex',
               flexDirection: 'column',
               padding: '14px',
               overflowY: 'auto',
             }}
           >
-            {/* Compact Header */}
+            {/* Header */}
             <div
               style={{
                 display: 'flex',
@@ -453,7 +976,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
               </motion.button>
             </div>
 
-            {/* Compact Grid Options */}
+            {/* Grid Options */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
               {/* 1. Reload Cloud */}
               <motion.button
@@ -470,7 +993,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                   background: 'rgba(59, 130, 246, 0.12)',
                   border: '1px solid rgba(59, 130, 246, 0.3)',
                   color: '#60a5fa',
-                  fontWeight: 700,
+                  fontWeight: 750,
                   fontSize: '0.82rem',
                   cursor: 'pointer',
                   textAlign: 'left',
@@ -480,7 +1003,82 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 <span>{t?.reloadCloud || 'Tải lại Cloud'}</span>
               </motion.button>
 
-              {/* 2. Game Turbo Boost */}
+              {/* 2. Auto-Clicker AFK Settings */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleOpenAutoClickerDrawer}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: isAutoClickerEnabled ? 'rgba(239, 68, 68, 0.22)' : 'rgba(255, 255, 255, 0.05)',
+                  border: isAutoClickerEnabled ? '1px solid rgba(239, 68, 68, 0.6)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: isAutoClickerEnabled ? '#fca5a5' : '#cbd5e1',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-hand-pointer" style={{ fontSize: '0.95rem', width: '18px', color: '#ef4444' }} />
+                <span>Auto-Clicker AFK</span>
+              </motion.button>
+
+              {/* 3. Tay Cầm Game Ảo Overlay */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleToggleVirtualGamepad}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: showVirtualGamepad ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: showVirtualGamepad ? '1px solid rgba(0, 240, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: showVirtualGamepad ? '#00f0ff' : '#cbd5e1',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-gamepad" style={{ fontSize: '0.95rem', width: '18px', color: '#00f0ff' }} />
+                <span>Tay Cầm Game Ảo</span>
+              </motion.button>
+
+              {/* 4. Chống Cháy Màn Hình AFK */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleToggleAfkSaver}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: isAfkSaver ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: isAfkSaver ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: isAfkSaver ? '#c084fc' : '#cbd5e1',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-moon" style={{ fontSize: '0.95rem', width: '18px', color: '#c084fc' }} />
+                <span>Chống Cháy Màn AFK</span>
+              </motion.button>
+
+              {/* 5. Game Turbo Boost */}
               <motion.button
                 whileHover={{ scale: 1.02, x: 2 }}
                 whileTap={{ scale: 0.98 }}
@@ -492,45 +1090,20 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '12px',
-                  background: isTurboBoost ? 'rgba(0, 240, 255, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  border: isTurboBoost ? '1px solid rgba(0, 240, 255, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
-                  color: isTurboBoost ? '#00f0ff' : '#cbd5e1',
+                  background: isTurboBoost ? 'rgba(34, 197, 94, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: isTurboBoost ? '1px solid rgba(34, 197, 94, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: isTurboBoost ? '#4ade80' : '#cbd5e1',
                   fontWeight: 750,
                   fontSize: '0.82rem',
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
               >
-                <i className="fas fa-bolt" style={{ fontSize: '0.95rem', width: '18px', color: '#00f0ff' }} />
+                <i className="fas fa-bolt" style={{ fontSize: '0.95rem', width: '18px', color: '#22c55e' }} />
                 <span>Game Turbo 120 FPS</span>
               </motion.button>
 
-              {/* 3. Auto-Clicker AFK */}
-              <motion.button
-                whileHover={{ scale: 1.02, x: 2 }}
-                whileTap={{ scale: 0.98 }}
-                onClick={handleToggleAutoClicker}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '10px',
-                  width: '100%',
-                  padding: '10px 12px',
-                  borderRadius: '12px',
-                  background: isAutoClicker ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  border: isAutoClicker ? '1px solid rgba(239, 68, 68, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
-                  color: isAutoClicker ? '#fca5a5' : '#cbd5e1',
-                  fontWeight: 750,
-                  fontSize: '0.82rem',
-                  cursor: 'pointer',
-                  textAlign: 'left',
-                }}
-              >
-                <i className="fas fa-hand-pointer" style={{ fontSize: '0.95rem', width: '18px', color: '#ef4444' }} />
-                <span>Auto-Clicker AFK</span>
-              </motion.button>
-
-              {/* 4. Orientation Switch (Xoay Màn Hình) */}
+              {/* 6. Orientation Switch (Xoay Màn Hình) */}
               <motion.button
                 whileHover={{ scale: 1.02, x: 2 }}
                 whileTap={{ scale: 0.98 }}
@@ -542,20 +1115,70 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                   width: '100%',
                   padding: '10px 12px',
                   borderRadius: '12px',
-                  background: isLandscape ? 'rgba(168, 85, 247, 0.2)' : 'rgba(255, 255, 255, 0.05)',
-                  border: isLandscape ? '1px solid rgba(168, 85, 247, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
-                  color: isLandscape ? '#c084fc' : '#cbd5e1',
+                  background: isLandscape ? 'rgba(56, 189, 248, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: isLandscape ? '1px solid rgba(56, 189, 248, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: isLandscape ? '#38bdf8' : '#cbd5e1',
                   fontWeight: 750,
                   fontSize: '0.82rem',
                   cursor: 'pointer',
                   textAlign: 'left',
                 }}
               >
-                <i className="fas fa-mobile-alt" style={{ fontSize: '0.95rem', width: '18px', color: '#c084fc', transform: isLandscape ? 'rotate(-90deg)' : 'none', transition: '0.3s' }} />
+                <i className="fas fa-mobile-alt" style={{ fontSize: '0.95rem', width: '18px', color: '#38bdf8', transform: isLandscape ? 'rotate(-90deg)' : 'none', transition: '0.3s' }} />
                 <span>{isLandscape ? 'Màn Hình Ngang (16:9)' : 'Màn Hình Dọc'}</span>
               </motion.button>
 
-              {/* 5. Screenshot Screen Capture */}
+              {/* 7. Tiết Kiệm Data Stream */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleToggleStreamQuality}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  color: '#cbd5e1',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-wifi" style={{ fontSize: '0.95rem', width: '18px', color: '#eab308' }} />
+                <span>{streamQuality === '720p' ? 'Data Saver (720p)' : 'Stream 4K Ultra HD'}</span>
+              </motion.button>
+
+              {/* 8. Kích Âm Bass Audio Boost */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleToggleAudioBoost}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: isAudioBoost ? 'rgba(236, 72, 153, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: isAudioBoost ? '1px solid rgba(236, 72, 153, 0.5)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: isAudioBoost ? '#f472b6' : '#cbd5e1',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-volume-up" style={{ fontSize: '0.95rem', width: '18px', color: '#ec4899' }} />
+                <span>Kích Âm Bass 3D</span>
+              </motion.button>
+
+              {/* 9. Screenshot Screen Capture */}
               <motion.button
                 whileHover={{ scale: 1.02, x: 2 }}
                 whileTap={{ scale: 0.98 }}
@@ -580,7 +1203,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 <span>Chụp Màn Hình</span>
               </motion.button>
 
-              {/* 6. Touch Lock Guard */}
+              {/* 10. Touch Lock Guard */}
               <motion.button
                 whileHover={{ scale: 1.02, x: 2 }}
                 whileTap={{ scale: 0.98 }}
@@ -605,7 +1228,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 <span>Khóa Cảm Ứng</span>
               </motion.button>
 
-              {/* 7. FPS Monitor Toggle */}
+              {/* 11. FPS Monitor Toggle */}
               <motion.button
                 whileHover={{ scale: 1.02, x: 2 }}
                 whileTap={{ scale: 0.98 }}
@@ -630,7 +1253,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 <span>{showFps ? 'Tắt FPS Monitor' : 'Bật FPS Monitor'}</span>
               </motion.button>
 
-              {/* 8. Bug Report */}
+              {/* 12. Bug Report */}
               {onOpenBugReportModal && (
                 <motion.button
                   whileHover={{ scale: 1.02, x: 2 }}
@@ -704,5 +1327,3 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     </div>
   );
 };
-
-

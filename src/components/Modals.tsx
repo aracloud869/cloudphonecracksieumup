@@ -1573,7 +1573,7 @@ export const LaunchLoadingModal: React.FC<LaunchLoadingModalProps> = ({
           position: 'fixed',
           inset: 0,
           zIndex: 99999,
-          background: 'radial-gradient(ellipse at center, #0f172a 0%, #020617 100%)',
+          background: 'radial-gradient(circle at 50% 40%, #0a0f24 0%, #030712 100%)',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
@@ -1581,58 +1581,112 @@ export const LaunchLoadingModal: React.FC<LaunchLoadingModalProps> = ({
           padding: '24px',
           color: 'white',
           userSelect: 'none',
+          overflow: 'hidden',
         }}
       >
-        <div style={{
-          position: 'absolute',
-          width: '320px',
-          height: '320px',
-          borderRadius: '50%',
-          background: 'radial-gradient(circle, rgba(37,99,235,0.25) 0%, rgba(0,0,0,0) 70%)',
-          filter: 'blur(40px)',
-          pointerEvents: 'none',
-        }} />
+        {/* Animated Cyber Holographic Matrix Background Grid */}
+        <div
+          style={{
+            position: 'absolute',
+            inset: -50,
+            backgroundImage: `
+              linear-gradient(rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0, 240, 255, 0.05) 1px, transparent 1px)
+            `,
+            backgroundSize: '40px 40px',
+            pointerEvents: 'none',
+            opacity: 0.6,
+          }}
+        />
+
+        {/* Ambient Pulsing Holographic Ambient Glow Orbs */}
+        <motion.div
+          animate={{ scale: [1, 1.25, 1], opacity: [0.25, 0.45, 0.25] }}
+          transition={{ repeat: Infinity, duration: 4, ease: 'easeInOut' }}
+          style={{
+            position: 'absolute',
+            width: '380px',
+            height: '380px',
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(0,240,255,0.3) 0%, rgba(59,130,246,0.15) 50%, rgba(0,0,0,0) 80%)',
+            filter: 'blur(50px)',
+            pointerEvents: 'none',
+          }}
+        />
 
         <motion.div
-          initial={{ scale: 0.9, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          exit={{ scale: 0.9, opacity: 0 }}
+          initial={{ scale: 0.88, opacity: 0, y: 15 }}
+          animate={{ scale: 1, opacity: 1, y: 0 }}
+          exit={{ scale: 0.88, opacity: 0, y: 15 }}
+          transition={{ type: 'spring', damping: 24, stiffness: 280 }}
           style={{
-            maxWidth: '420px',
+            maxWidth: '430px',
             width: '100%',
             textAlign: 'center',
             position: 'relative',
             zIndex: 2,
-            background: 'rgba(15, 23, 42, 0.75)',
-            backdropFilter: 'blur(16px)',
-            border: '1px solid rgba(255,255,255,0.12)',
-            borderRadius: '28px',
-            padding: '32px 24px',
-            boxShadow: '0 25px 60px rgba(0,0,0,0.6)',
+            background: 'rgba(10, 16, 32, 0.82)',
+            backdropFilter: 'blur(20px)',
+            border: '1px solid rgba(0, 240, 255, 0.3)',
+            borderRadius: '32px',
+            padding: '36px 26px 28px 26px',
+            boxShadow: '0 25px 70px rgba(0, 0, 0, 0.85), 0 0 30px rgba(0, 240, 255, 0.15)',
           }}
         >
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(255,255,255,0.06)', padding: '6px 14px', borderRadius: '20px', border: '1px solid rgba(255,255,255,0.1)', marginBottom: '20px' }}>
-            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: pingColor, boxShadow: `0 0 10px ${pingColor}` }}></span>
-            <span style={{ fontSize: '0.8rem', fontWeight: 800, color: '#e2e8f0' }}>
-              ⚡ Ping: <span style={{ color: pingColor }}>{pingVal} ms</span> ({pingLabel})
+          {/* Top Cyber Badge (Live Status & Ping) */}
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: 'rgba(0, 240, 255, 0.08)', padding: '6px 16px', borderRadius: '20px', border: '1px solid rgba(0, 240, 255, 0.25)', marginBottom: '18px' }}>
+            <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: pingColor, boxShadow: `0 0 12px ${pingColor}` }}></span>
+            <span style={{ fontSize: '0.78rem', fontWeight: 800, color: '#e2e8f0', letterSpacing: '0.5px' }}>
+              PRO MAX RTX • PING: <span style={{ color: pingColor, fontWeight: 900 }}>{pingVal} ms</span> ({pingLabel})
             </span>
           </div>
 
-          <h2 style={{ fontSize: '1.25rem', fontWeight: 850, margin: '0 0 4px 0', color: '#ffffff' }}>
+          <h2 style={{ fontSize: '1.35rem', fontWeight: 900, margin: '0 0 4px 0', color: '#ffffff', letterSpacing: '-0.02em', textShadow: '0 0 12px rgba(255,255,255,0.3)' }}>
             Đang Khởi Chạy Màn Hình
           </h2>
-          <p style={{ fontSize: '0.9rem', color: '#38bdf8', fontWeight: 700, margin: '0 0 24px 0' }}>
-            <i className="fas fa-mobile-alt" style={{ marginRight: '6px' }}></i>
-            {targetInfo.name}
+          <p style={{ fontSize: '0.9rem', color: '#00f0ff', fontWeight: 800, margin: '0 0 26px 0', textShadow: '0 0 10px rgba(0,240,255,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
+            <i className="fas fa-server" style={{ fontSize: '0.85rem' }} />
+            <span>{targetInfo.name}</span>
           </p>
 
-          <div style={{ position: 'relative', width: `${size}px`, height: `${size}px`, margin: '0 auto 24px auto' }}>
-            <svg width={size} height={size} style={{ transform: 'rotate(-90deg)' }}>
+          {/* Holographic Revolving Progress Core */}
+          <div style={{ position: 'relative', width: `${size}px`, height: `${size}px`, margin: '0 auto 26px auto', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            
+            {/* Outer Rotating Cyber Tech Ring */}
+            <motion.div
+              animate={{ rotate: 360 }}
+              transition={{ repeat: Infinity, duration: 12, ease: 'linear' }}
+              style={{
+                position: 'absolute',
+                inset: -12,
+                borderRadius: '50%',
+                border: '1.5px dashed rgba(0, 240, 255, 0.4)',
+                pointerEvents: 'none',
+              }}
+            />
+
+            {/* Counter Rotating Inner Ring */}
+            <motion.div
+              animate={{ rotate: -360 }}
+              transition={{ repeat: Infinity, duration: 8, ease: 'linear' }}
+              style={{
+                position: 'absolute',
+                inset: -6,
+                borderRadius: '50%',
+                border: '1px solid rgba(59, 130, 246, 0.25)',
+                borderTopColor: '#00f0ff',
+                borderBottomColor: '#a855f7',
+                pointerEvents: 'none',
+              }}
+            />
+
+            {/* SVG Progress Circle */}
+            <svg width={size} height={size} style={{ transform: 'rotate(-90deg)', filter: 'drop-shadow(0 0 8px rgba(0, 240, 255, 0.5))' }}>
               <circle
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
-                stroke="rgba(255,255,255,0.08)"
+                stroke="rgba(255,255,255,0.06)"
                 strokeWidth={strokeWidth}
                 fill="transparent"
               />
@@ -1640,23 +1694,24 @@ export const LaunchLoadingModal: React.FC<LaunchLoadingModalProps> = ({
                 cx={size / 2}
                 cy={size / 2}
                 r={radius}
-                stroke="url(#progressGradient)"
+                stroke="url(#cyberProgressGradient)"
                 strokeWidth={strokeWidth}
                 fill="transparent"
                 strokeDasharray={circumference}
                 strokeDashoffset={strokeDashoffset}
                 strokeLinecap="round"
-                style={{ transition: 'stroke-dashoffset 0.08s linear' }}
+                style={{ transition: 'stroke-dashoffset 0.08s ease-out' }}
               />
               <defs>
-                <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#3b82f6" />
-                  <stop offset="50%" stopColor="#06b6d4" />
-                  <stop offset="100%" stopColor="#10b981" />
+                <linearGradient id="cyberProgressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stopColor="#00f0ff" />
+                  <stop offset="50%" stopColor="#3b82f6" />
+                  <stop offset="100%" stopColor="#a855f7" />
                 </linearGradient>
               </defs>
             </svg>
 
+            {/* Central Hologram Percentage Indicator */}
             <div
               style={{
                 position: 'absolute',
@@ -1667,37 +1722,69 @@ export const LaunchLoadingModal: React.FC<LaunchLoadingModalProps> = ({
                 justifyContent: 'center',
               }}
             >
-              <span style={{ fontSize: '2.4rem', fontWeight: 900, fontFamily: 'monospace', color: '#ffffff', letterSpacing: '-1px' }}>
+              <motion.span
+                key={progress}
+                initial={{ scale: 0.95 }}
+                animate={{ scale: 1 }}
+                style={{
+                  fontSize: '2.5rem',
+                  fontWeight: 900,
+                  fontFamily: "'JetBrains Mono', monospace, sans-serif",
+                  color: '#ffffff',
+                  letterSpacing: '-1.5px',
+                  textShadow: '0 0 16px rgba(0, 240, 255, 0.8)',
+                }}
+              >
                 {progress}%
-              </span>
-              <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '1px' }}>
-                Loading...
+              </motion.span>
+              <span style={{ fontSize: '0.65rem', fontWeight: 900, color: '#00f0ff', textTransform: 'uppercase', letterSpacing: '2px', opacity: 0.9 }}>
+                STREAMING
               </span>
             </div>
           </div>
 
-          <div style={{ background: 'rgba(0,0,0,0.3)', borderRadius: '14px', padding: '12px 16px', marginBottom: '20px', border: '1px solid rgba(255,255,255,0.06)' }}>
-            <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#e2e8f0', minHeight: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}>
-              <i className="fas fa-sync-alt fa-spin" style={{ fontSize: '0.75rem', color: '#38bdf8' }}></i>
+          {/* Equalizer Audio / Stream Frequency Visualizer Bars */}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '18px' }}>
+            {[0.4, 0.8, 0.3, 1, 0.6, 0.9, 0.5, 0.7, 0.2, 0.85].map((scale, i) => (
+              <motion.div
+                key={i}
+                animate={{ height: ['6px', `${Math.round(18 * scale)}px`, '6px'] }}
+                transition={{ repeat: Infinity, duration: 0.6 + (i % 3) * 0.2, ease: 'easeInOut' }}
+                style={{
+                  width: '3.5px',
+                  borderRadius: '3px',
+                  background: 'linear-gradient(180deg, #00f0ff 0%, #3b82f6 100%)',
+                  boxShadow: '0 0 6px rgba(0, 240, 255, 0.6)',
+                }}
+              />
+            ))}
+          </div>
+
+          {/* Status Text Box with Cyber Glow */}
+          <div style={{ background: 'rgba(0, 240, 255, 0.05)', borderRadius: '16px', padding: '12px 16px', marginBottom: '22px', border: '1px solid rgba(0, 240, 255, 0.2)' }}>
+            <div style={{ fontSize: '0.84rem', fontWeight: 800, color: '#f1f5f9', minHeight: '22px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}>
+              <i className="fas fa-microchip fa-spin" style={{ fontSize: '0.85rem', color: '#00f0ff' }}></i>
               <span>{statusText}</span>
             </div>
           </div>
 
           <motion.button
+            whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.95 }}
             onClick={onClose}
             style={{
-              background: 'transparent',
-              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'rgba(255, 255, 255, 0.05)',
+              border: '1px solid rgba(255, 255, 255, 0.2)',
               color: '#94a3b8',
-              padding: '8px 18px',
-              borderRadius: '12px',
-              fontSize: '0.8rem',
-              fontWeight: 700,
+              padding: '10px 22px',
+              borderRadius: '14px',
+              fontSize: '0.82rem',
+              fontWeight: 800,
               cursor: 'pointer',
-              transition: 'all 0.15s ease',
+              transition: 'all 0.2s',
             }}
           >
+            <i className="fas fa-times" style={{ marginRight: '6px' }} />
             Hủy khởi chạy
           </motion.button>
         </motion.div>
