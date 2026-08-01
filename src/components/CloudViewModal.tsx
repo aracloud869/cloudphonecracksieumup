@@ -22,6 +22,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
   const [statusText, setStatusText] = useState(t?.cloudConnecting || 'Đang kết nối...');
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [showFps, setShowFps] = useState(false);
+  const [showPing, setShowPing] = useState(true);
   const [fpsVal, setFpsVal] = useState(60);
   const [ping, setPing] = useState<number>(28);
 
@@ -111,6 +112,13 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
     const nextState = !showFps;
     setShowFps(nextState);
     showToast(nextState ? (t?.fpsMonitorOnToast || 'Bật FPS Monitor') : (t?.fpsMonitorOffToast || 'Tắt FPS Monitor'));
+    setIsDrawerOpen(false);
+  };
+
+  const handleTogglePing = () => {
+    const nextState = !showPing;
+    setShowPing(nextState);
+    showToast(nextState ? '📡 Bật Hiển Thị Ping Badge' : '📡 Tắt Hiển Thị Ping Badge');
     setIsDrawerOpen(false);
   };
 
@@ -254,36 +262,34 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
       {/* Status Overlay */}
       {statusText && <div className="cloud-status">{statusText}</div>}
 
-      {/* Floating Top Control Toolbar */}
-      <div
-        style={{
-          position: 'fixed',
-          top: '12px',
-          right: '12px',
-          zIndex: 10040,
-          display: 'flex',
-          alignItems: 'center',
-          gap: '8px',
-        }}
-      >
-        {/* Real-time Ping Indicator Badge */}
-        <div
+      {/* Real-time Draggable Ping Indicator Badge */}
+      {showPing && (
+        <motion.div
+          drag
+          dragMomentum={false}
+          whileDrag={{ scale: 1.08, zIndex: 10070 }}
           style={{
-            background: 'rgba(15, 23, 42, 0.85)',
-            backdropFilter: 'blur(10px)',
+            position: 'fixed',
+            top: '12px',
+            right: '12px',
+            zIndex: 10040,
+            background: 'rgba(15, 23, 42, 0.88)',
+            backdropFilter: 'blur(12px)',
             color: '#ffffff',
-            padding: '5px 12px',
+            padding: '6px 14px',
             borderRadius: '20px',
             fontSize: '0.75rem',
-            fontWeight: 700,
+            fontWeight: 800,
             display: 'flex',
             alignItems: 'center',
-            gap: '6px',
-            border: '1px solid rgba(255, 255, 255, 0.2)',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+            gap: '8px',
+            border: '1px solid rgba(255, 255, 255, 0.25)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
             userSelect: 'none',
-            pointerEvents: 'none',
+            cursor: 'grab',
+            touchAction: 'none',
           }}
+          title="📡 Kéo thả để di chuyển Ping Badge"
         >
           <span
             style={{
@@ -296,12 +302,12 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
           />
           <span>Ping: {ping}ms</span>
           {isTurboBoost && (
-            <span style={{ color: '#00f0ff', fontSize: '0.68rem', fontWeight: 900, background: 'rgba(0,240,255,0.2)', padding: '1px 5px', borderRadius: '6px', marginLeft: '4px' }}>
+            <span style={{ color: '#00f0ff', fontSize: '0.68rem', fontWeight: 900, background: 'rgba(0,240,255,0.2)', padding: '1px 5px', borderRadius: '6px', marginLeft: '2px' }}>
               TURBO
             </span>
           )}
-        </div>
-      </div>
+        </motion.div>
+      )}
 
       {/* Main Cloud Iframe Container */}
       <div
@@ -588,7 +594,32 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 <span>Khóa Cảm Ứng</span>
               </motion.button>
 
-              {/* 8. FPS Monitor Toggle */}
+              {/* 8. Ping Badge Toggle */}
+              <motion.button
+                whileHover={{ scale: 1.02, x: 2 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={handleTogglePing}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  width: '100%',
+                  padding: '10px 12px',
+                  borderRadius: '12px',
+                  background: showPing ? 'rgba(16, 185, 129, 0.2)' : 'rgba(255, 255, 255, 0.05)',
+                  border: showPing ? '1px solid rgba(16, 185, 129, 0.4)' : '1px solid rgba(255, 255, 255, 0.1)',
+                  color: showPing ? '#34d399' : '#cbd5e1',
+                  fontWeight: 750,
+                  fontSize: '0.82rem',
+                  cursor: 'pointer',
+                  textAlign: 'left',
+                }}
+              >
+                <i className="fas fa-signal" style={{ fontSize: '0.95rem', width: '18px', color: '#10b981' }} />
+                <span>{showPing ? 'Tắt Ping Badge' : 'Bật Ping Badge'}</span>
+              </motion.button>
+
+              {/* 9. FPS Monitor Toggle */}
               <motion.button
                 whileHover={{ scale: 1.02, x: 2 }}
                 whileTap={{ scale: 0.98 }}
@@ -613,7 +644,7 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
                 <span>{showFps ? 'Tắt FPS Monitor' : 'Bật FPS Monitor'}</span>
               </motion.button>
 
-              {/* 9. Bug Report */}
+              {/* 10. Bug Report */}
               {onOpenBugReportModal && (
                 <motion.button
                   whileHover={{ scale: 1.02, x: 2 }}
@@ -678,11 +709,38 @@ export const CloudViewModal: React.FC<CloudViewModalProps> = ({
         )}
       </AnimatePresence>
 
-      {/* FPS Overlay Indicator */}
+      {/* Draggable FPS Overlay Indicator */}
       {showFps && (
-        <div className="fps-monitor" style={{ display: 'block' }}>
-          FPS: <span id="fps-val">{fpsVal}</span>
-        </div>
+        <motion.div
+          drag
+          dragMomentum={false}
+          whileDrag={{ scale: 1.08, zIndex: 10070 }}
+          style={{
+            position: 'fixed',
+            top: '12px',
+            left: '12px',
+            zIndex: 10040,
+            background: 'rgba(15, 23, 42, 0.88)',
+            backdropFilter: 'blur(12px)',
+            color: '#10b981',
+            padding: '6px 14px',
+            borderRadius: '20px',
+            fontSize: '0.75rem',
+            fontWeight: 800,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px',
+            border: '1px solid rgba(16, 185, 129, 0.4)',
+            boxShadow: '0 4px 18px rgba(0,0,0,0.5)',
+            userSelect: 'none',
+            cursor: 'grab',
+            touchAction: 'none',
+          }}
+          title="⚡ Kéo thả để di chuyển FPS Badge"
+        >
+          <i className="fas fa-tachometer-alt" style={{ fontSize: '0.8rem', color: '#10b981' }} />
+          <span>FPS: <strong style={{ color: '#ffffff', fontWeight: 900 }}>{fpsVal}</strong></span>
+        </motion.div>
       )}
     </div>
   );
